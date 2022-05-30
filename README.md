@@ -1,0 +1,2 @@
+# MagicUtility
+QQ-server utility!
