@@ -1,0 +1,9 @@
+{
+    "server":"魔法先生服务器",
+    "server_2":"魔法先生模组服务器",
+    "clean_entity_cmd":"/清理实体",
+    "default_delay": 15000,
+    "check_entity_cmd":"/查实体",
+    "check_xbox_cmd":"/查ID",
+    "mute_cmd":"/禁言"
+}
