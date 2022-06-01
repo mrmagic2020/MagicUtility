@@ -2,16 +2,21 @@ const logger = new NIL.Logger(`test`);
 const { get } = require("http");
 const path = require(`path`);
 const { segment } = require(`oicq`);
+const { verify } = require("crypto");
 
 const config = JSON.parse(NIL.IO.readFrom(path.join(__dirname, `config.json`)));
 const server_name = config.server;
 const server_name_2 = config.server_2;
+const main_id = config.main_id;
+const chat_id = config.chat_id;
 const second_server = config.second_server;
 const clean_entity_cmd = config.clean_entity_cmd;
 const default_delay = config.default_delay;
 const check_entity_cmd = config.check_entity_cmd;
 const check_xbox_cmd = config.check_xbox_cmd;
 const mute_cmd = config.mute_cmd;
+const TPS_cmd = config.TPS_cmd;
+const economy_cmd = config.economy_cmd;
 
 const typelist = JSON.parse(NIL.IO.readFrom(path.join(__dirname, `typelist.json`)));
 
@@ -20,6 +25,8 @@ let server_2 = NIL.SERVERS.get(server_name_2);
 let bot = NIL.bots.getBot(NIL._vanilla.cfg.self_id);
 let server_status = 0;
 let server_status_2 = 0;
+
+const economy_regex = new RegExp(`(.+)Balance:(.+)`);
 
 var getAt = function (e) {
     var at = [];
@@ -73,7 +80,31 @@ class MagicUtility extends NIL.ModuleBase{
     onStart(api){
         logger.setTitle(`MagicUtility`);
         logger.info(`MagicUtility loaded!`);
-        server_status = 1;
+
+        api.listen(`onRobotOnline`, (qq) => {
+
+            /*
+            通过发送命令的回调函数检查服务器是否开启
+            */
+
+            server.sendCMD(`list`, (callback) => {
+                if(callback == null){
+                    server_status = 0;
+                }else{
+                    server_status = 1;
+                }
+            });
+            if(second_server == true){
+                server_2.sendCMD(`list`, (callback) => {
+                    if(callback == null){
+                        server_status_2 = 0;
+                    }else{
+                        server_status_2 = 1;
+                    }
+                })
+            }
+        })
+
         api.listen(`onServerStart`, (callback) => {
             if(callback.server == server_name){
                 server_status = 1;
@@ -127,13 +158,88 @@ class MagicUtility extends NIL.ModuleBase{
 
                     }
             }
+
+            /*
+            查询TPS部分
+            */
+
+            if(pt[0] == TPS_cmd){
+                switch(pt.length){
+                    case 1:
+                        server.sendCMD(`tps`, (callback) => {
+                            e.reply(callback);
+                        })
+                        if(second_server == true){
+                            server_2.sendCMD(`tps`, (callback) => {
+                                e.reply(callback);
+                            })
+                        }
+                    case 2:
+                        if(pt[1] == server_name){
+                            server.sendCMD('tps', (callback) => {
+                                e.reply(callback);
+                            })
+                        }
+                        if(pt[1] == server_name_2){
+                            server_2.sendCMD('tps', (callback) => {
+                                e.reply(callback);
+                            })
+                        }
+                }
+            }
+
+            /*
+            查询经济部分
+            */
+
+            if(pt[0] == economy_cmd){
+                switch(pt.length){
+                    case 1:
+                        let qq = e.sender.qq;
+                        let xbox_id = NIL._vanilla.get_xboxid(qq);
+                        server.sendCMD(`money query ` + xbox_id, (callback) => {
+                            let res = callback.replace(economy_regex, `玩家` + xbox_id + `在` + server_name + `的经济余额：$2`);
+                            e.reply(res);
+                        });
+                        if(second_server == true){
+                            server_2.sendCMD(`money query ` + xbox_id, (callback) => {
+                                let res = callback.replace(economy_regex, `玩家` + xbox_id + `在` + server_name_2 + `的经济余额：$2`);
+                                e.reply(res);
+                            });
+                        }
+                        break
+                    case 2:
+                        var at = getAt(e);
+                        at.forEach(element => {
+                            if(NIL._vanilla.wl_exists(element) == true){
+                                let xbox_id = NIL._vanilla.get_xboxid(element);
+                                server.sendCMD(`money query ` + xbox_id, (callback) => {
+                                    let res = callback.replace(economy_regex, `玩家` + xbox_id + `在` + server_name + `的经济余额：$2`);
+                                    e.reply(res);
+                                });
+                                if(second_server == true){
+                                    server_2.sendCMD(`money query ` + xbox_id, (callback) => {
+                                        let res = callback.replace(economy_regex, `玩家` + xbox_id + `在` + server_name_2 + `的经济余额：$2`);
+                                        e.reply(res);
+                                    });
+                                }
+                            }else{
+                                e.reply(`该群员未绑定白名单`, true);
+                            }
+                        });
+                        break
+                    default:
+                        e.reply(`格式：` + economy_cmd + ` <@群成员（可选）>`);
+
+                }
+            }
             
             /*
             管理员部分
             */
 
             if(NIL._vanilla.isAdmin(e.sender.qq) == true){
-
+                
                 /*
                 重启部分
                 */
@@ -239,8 +345,10 @@ class MagicUtility extends NIL.ModuleBase{
         bot.on(`message.group`, (e) => {
             let text = getText(e);
             let pt = text.split(` `);
-            if(e.member.is_admin == true){
-                if(pt[0] == `/禁言`){
+
+            /*
+            if(pt[0] == `/禁言`){
+                if(e.member.is_owner() == true){
                     switch(pt.length){
                         case 2: // 永久禁言
                             var at = getAt(e);
@@ -264,9 +372,14 @@ class MagicUtility extends NIL.ModuleBase{
                             e.group.sendMsg(`格式：` + mute_cmd + ` <@群成员> <禁言时长（可选）>`);
                     
                     }
+                }else{
+                    e.group.sendMsg(`你没有权限使用该功能！`);
                 }
             }
+            */
+
         })
+
     }
     onStop(api){
 
