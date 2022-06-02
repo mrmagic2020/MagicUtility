@@ -3,7 +3,7 @@
     "server_2":"魔法先生模组服务器",
     "main_id":"",
     "chat_id":"",
-    "second_server": true,
+    "second_server": false,
     "clean_entity_cmd":"/清理实体",
     "default_delay": 15000,
     "check_entity_cmd":"/查实体",

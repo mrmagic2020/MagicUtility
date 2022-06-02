@@ -235,6 +235,21 @@ class MagicUtility extends NIL.ModuleBase{
             }
             
             /*
+            实体查询部分
+            */
+
+            if (pt[0] == check_entity_cmd){
+                server.sendCMD(`entque`, (callback) => {
+                    e.reply(callback);
+                });
+                if(second_server == true){
+                    server_2.sendCMD(`entque`, (callback) => {
+                        e.reply(callback);
+                    });
+                }
+            }
+
+            /*
             管理员部分
             */
 
@@ -268,22 +283,6 @@ class MagicUtility extends NIL.ModuleBase{
                             e.reply(`格式：重启 <服务器名称>`)
                     }
                 }
-
-                /*
-                实体查询部分
-                */
-
-                if (pt[0] == check_entity_cmd){
-                    server.sendCMD(`entque`, (callback) => {
-                        e.reply(callback);
-                    });
-                    if(second_server == true){
-                        server_2.sendCMD(`entque`, (callback) => {
-                            e.reply(callback);
-                        });
-                    }
-                }
-
 
                 /*
                 实体清理部分
@@ -337,6 +336,8 @@ class MagicUtility extends NIL.ModuleBase{
                                 e.reply(`格式：` + clean_entity_cmd + ` <清理项目> <延迟（可选）>`);
                                 break
                             }
+                        default:
+                            e.reply(`格式：` + clean_entity_cmd + ` <清理项目> <延迟（可选）>`);
                     }
                 }
             }
