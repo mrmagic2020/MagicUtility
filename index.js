@@ -3,20 +3,25 @@ const { get } = require("http");
 const path = require(`path`);
 const { segment } = require(`oicq`);
 const { verify } = require("crypto");
+const { off } = require("process");
 
 const config = JSON.parse(NIL.IO.readFrom(path.join(__dirname, `config.json`)));
-const server_name = config.server;
-const server_name_2 = config.server_2;
-const main_id = config.main_id;
-const chat_id = config.chat_id;
-const second_server = config.second_server;
-const clean_entity_cmd = config.clean_entity_cmd;
-const default_delay = config.default_delay;
-const check_entity_cmd = config.check_entity_cmd;
-const check_xbox_cmd = config.check_xbox_cmd;
-const mute_cmd = config.mute_cmd;
-const TPS_cmd = config.TPS_cmd;
-const economy_cmd = config.economy_cmd;
+let server_name = config.server;
+let server_name_2 = config.server_2;
+let main_id = config.main_id;
+let chat_id = config.chat_id;
+let second_server = config.second_server;
+let clean_entity_cmd = config.clean_entity_cmd;
+let default_delay = config.default_delay;
+let check_entity_cmd = config.check_entity_cmd;
+let check_xbox_cmd = config.check_xbox_cmd;
+let mute_cmd = config.mute_cmd;
+let TPS_cmd = config.TPS_cmd;
+let economy_cmd = config.economy_cmd;
+let ban_cmd = config.ban_cmd;
+let auto_agree_group = config.auto_agree_group;
+let auto_agree_friend = config.auto_agree_friend;
+let auto_allow_group = config.auto_allow_group;
 
 const typelist = JSON.parse(NIL.IO.readFrom(path.join(__dirname, `typelist.json`)));
 
@@ -27,6 +32,7 @@ let server_status = 0;
 let server_status_2 = 0;
 
 const economy_regex = new RegExp(`(.+)Balance:(.+)`);
+const tps_regex = new RegExp(`(.+)TPS:(.+)`);
 
 var getAt = function (e) {
     var at = [];
@@ -167,24 +173,40 @@ class MagicUtility extends NIL.ModuleBase{
                 switch(pt.length){
                     case 1:
                         server.sendCMD(`tps`, (callback) => {
-                            e.reply(callback);
-                        })
+                            var res = callback.replace(tps_regex, server_name + `目前TPS：$2`);
+                            if(callback  != null){
+                                e.reply(res);
+                            }else{
+                                e.reply(server_name + `未开启！`);
+                            }
+                        });
                         if(second_server == true){
                             server_2.sendCMD(`tps`, (callback) => {
-                                e.reply(callback);
+                                var res = callback.replace(tps_regex, server_name_2 + `目前TPS：$2`);
+                                if(callback != null){
+                                    e.reply(res);
+                                }else{
+                                    e.reply(server_name_2 + `未开启!`);
+                                }
                             })
                         }
+                        break
                     case 2:
                         if(pt[1] == server_name){
                             server.sendCMD('tps', (callback) => {
-                                e.reply(callback);
+                                var res = callback.replace(tps_regex, server_name + `目前TPS：$2`);
+                                e.reply(res);
                             })
                         }
                         if(pt[1] == server_name_2){
                             server_2.sendCMD('tps', (callback) => {
-                                e.reply(callback);
+                                var res = callback.replace(tps_regex, server_name_2 + `目前TPS：$2`);
+                                e.reply(res);
                             })
                         }
+                        break
+                    default:
+                        e.reply(`格式：` + TPS_cmd + ` <服务器名称（可选）>`)
                 }
             }
 
@@ -209,6 +231,26 @@ class MagicUtility extends NIL.ModuleBase{
                         }
                         break
                     case 2:
+                        var at = getAt(e);
+                        at.forEach(element => {
+                            if(NIL._vanilla.wl_exists(element) == true){
+                                let xbox_id = NIL._vanilla.get_xboxid(element);
+                                server.sendCMD(`money query ` + xbox_id, (callback) => {
+                                    let res = callback.replace(economy_regex, `玩家` + xbox_id + `在` + server_name + `的经济余额：$2`);
+                                    e.reply(res);
+                                });
+                                if(second_server == true){
+                                    server_2.sendCMD(`money query ` + xbox_id, (callback) => {
+                                        let res = callback.replace(economy_regex, `玩家` + xbox_id + `在` + server_name_2 + `的经济余额：$2`);
+                                        e.reply(res);
+                                    });
+                                }
+                            }else{
+                                e.reply(`该群员未绑定白名单`, true);
+                            }
+                        });
+                        break
+                    case 3:
                         var at = getAt(e);
                         at.forEach(element => {
                             if(NIL._vanilla.wl_exists(element) == true){
@@ -288,8 +330,7 @@ class MagicUtility extends NIL.ModuleBase{
                 实体清理部分
                 */
 
-
-                if (pt[0] == clean_entity_cmd){
+                if(pt[0] == clean_entity_cmd){
                     switch(pt.length){
                         case 2:
                             let target = pt[1]; // 读取清理目标
@@ -340,6 +381,56 @@ class MagicUtility extends NIL.ModuleBase{
                             e.reply(`格式：` + clean_entity_cmd + ` <清理项目> <延迟（可选）>`);
                     }
                 }
+
+                /*
+                封禁部分
+                */
+
+                if(pt[0] == ban_cmd){
+                    switch(pt.length){
+                        case 2:
+                            var at = getAt(e);
+                            at.forEach(element => {
+                                if(NIL._vanilla.wl_exists(element) == true){
+                                    var xbox_id = NIL._vanilla.get_xboxid(element);
+                                    server.sendCMD(`ban` + xbox_id, (callback) => {
+                                        e.reply(callback);
+                                    });
+                                    if(second_server == true){
+                                        server_2.sendCMD(`ban` + xbox_id, (callback) => {
+                                            e.reply(callback);
+                                        })
+                                    }
+                                }
+                            });
+                            break
+                        default:
+                            e.reply
+                    }
+                }
+            }
+        });
+
+
+        /*
+        oicq监听部分
+        */
+
+        bot.on(`request.group.invite`, (e) => { // 自动同意加群申请
+            if(auto_agree_group == true){
+                e.approve();
+            }
+        });
+
+        bot.on(`request.friend.add`, (e) => { // 自动同意好友申请
+            if(auto_agree_friend == true){
+                e.approve();
+            }
+        });
+
+        bot.on(`request.group.add`, (e) => { // 自动群审核
+            if(auto_agree_group == true){
+                e.approve();
             }
         })
 

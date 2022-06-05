@@ -2,5 +2,7 @@
     "掉落物":"item",
     "僵尸猪灵":"zombie_pigman",
     "守卫者":"guardian",
-    "恶魂":"ghast"
+    "恶魂":"ghast",
+    "女巫":"witch",
+    "经验球":"xp_orb"
 }
