@@ -1,9 +1,9 @@
 const logger = new NIL.Logger(`test`);
-const { get } = require("http");
 const path = require(`path`);
 const { segment } = require(`oicq`);
-const { verify } = require("crypto");
-const { off } = require("process");
+const request = require(`sync-request`);
+
+const xuid_api = `https://api.blackbe.xyz/openapi/v3/utils/xuid?gamertag=`;
 
 const config = JSON.parse(NIL.IO.readFrom(path.join(__dirname, `config.json`)));
 let server_name = config.server;
@@ -56,6 +56,26 @@ function getText(e) {
         }
     }
     return rt;
+}
+
+function GET_Request(gamertag){
+    let obj = request(`GET`, xuid_api + gamertag);
+    let result = JSON.parse(obj.getBody(`utf8`));
+    if(result.status == 2000){
+        return result
+    }else if(result.status == 2001){
+        let err = `查询的玩家不存在！`;
+        return err
+    }else if(result.status == 4001){
+        let err = `参数错误！`;
+        return err
+    }else if(result.status == 5005){
+        let err = `API服务器出错，过会再试吧～`;
+        return err
+    }else{
+        let err = `未知错误`;
+        return err
+    }
 }
 
 /*
@@ -144,16 +164,31 @@ class MagicUtility extends NIL.ModuleBase{
                         case 1:
                             if(NIL._vanilla.wl_exists(e.sender.qq) == true){
                                 let xbox_id = NIL._vanilla.get_xboxid(e.sender.qq);
-                                e.reply(`你的玩家代号为` + xbox_id, true);
+                                let result = GET_Request(xbox_id);
+                                e.reply(`你的玩家代号为` + xbox_id + `\nXUID: ` + `${result.data.xuid}`, true);
                             }else{
                                 e.reply(`你未绑定白名单`)
                             }
+                            break
                         case 2:
                             var at = getAt(e);
                             at.forEach(element => {
                                 if(NIL._vanilla.wl_exists(element) == true){
                                     let xbox_id = NIL._vanilla.get_xboxid(element);
-                                    e.reply(`该群员的玩家代号为` + xbox_id, true);
+                                    let result = GET_Request(xbox_id);
+                                    e.reply(`该群员的玩家代号为` + xbox_id + `\nXUID: ` + `${result.data.xuid}`, true);
+                                }else{
+                                    e.reply(`该群员未绑定白名单`)
+                                }
+                            });
+                            break
+                        case 3: // 规避空格
+                            var at = getAt(e);
+                            at.forEach(element => {
+                                if(NIL._vanilla.wl_exists(element) == true){
+                                    let xbox_id = NIL._vanilla.get_xboxid(element);
+                                    let result = GET_Request(xbox_id);
+                                    e.reply(`该群员的玩家代号为` + xbox_id + `\nXUID: ` + `${result.data.xuid}`, true);
                                 }else{
                                     e.reply(`该群员未绑定白名单`)
                                 }
@@ -429,47 +464,9 @@ class MagicUtility extends NIL.ModuleBase{
         });
 
         bot.on(`request.group.add`, (e) => { // 自动群审核
-            if(auto_agree_group == true){
+            if(auto_allow_group == true){
                 e.approve();
             }
-        })
-
-        bot.on(`message.group`, (e) => {
-            let text = getText(e);
-            let pt = text.split(` `);
-
-            /*
-            if(pt[0] == `/禁言`){
-                if(e.member.is_owner() == true){
-                    switch(pt.length){
-                        case 2: // 永久禁言
-                            var at = getAt(e);
-                            at.forEach(element => {
-                                e.group.muteMember(element);
-                                e.group.sendMsg(`群成员` + pt[1] + `已被禁言！`, true);
-                            });
-                            break
-                        case 3: // 限时禁言
-                            if(myIsNaN(pt[2]) == true){
-                                var at = getAt(e);
-                                at.forEach(element => {
-                                    e.group.muteMember(element, pt[2]);
-                                    e.group.sendMsg(`群成员` + pt[1] + `已被禁言` + pt[3] + `秒！`);
-                                });
-                            }else{
-                                e.group.sendMsg(`格式：` + mute_cmd + ` <@群成员> <禁言时长（可选）>`);
-                            }
-                            break
-                        default:
-                            e.group.sendMsg(`格式：` + mute_cmd + ` <@群成员> <禁言时长（可选）>`);
-                    
-                    }
-                }else{
-                    e.group.sendMsg(`你没有权限使用该功能！`);
-                }
-            }
-            */
-
         })
 
     }
